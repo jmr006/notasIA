@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notas de Audio con IA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configuración personalizada de Tailwind CSS para colores y temas de Material You
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              // Paleta de colores para el tema claro (basada en tonos verdes y azules)
+              'primary-light': '#3B82F6',
+              'on-primary-light': '#FFFFFF',
+              'primary-container-light': '#D4E8FF',
+              'on-primary-container-light': '#0A2647',
+              'secondary-light': '#546A76',
+              'on-secondary-light': '#FFFFFF',
+              'secondary-container-light': '#D7E1E8',
+              'on-secondary-container-light': '#1C2C35',
+              'tertiary-light': '#6E5C77',
+              'on-tertiary-light': '#FFFFFF',
+              'tertiary-container-light': '#E8DDEE',
+              'on-tertiary-container-light': '#281A32',
+              'background-light': '#F8F9FB',
+              'on-background-light': '#1E2325',
+              'surface-light': '#F8F9FB',
+              'on-surface-light': '#1E2325',
+              'surface-variant-light': '#DFE2E4',
+              'on-surface-variant-light': '#4D5356',
+              'outline-light': '#7D8486',
+              
+              // Paleta de colores para el tema oscuro
+              'primary-dark': '#8EBCF6',
+              'on-primary-dark': '#002C5A',
+              'primary-container-dark': '#294363',
+              'on-primary-container-dark': '#D4E8FF',
+              'secondary-dark': '#BCCED7',
+              'on-secondary-dark': '#273840',
+              'secondary-container-dark': '#3D4F59',
+              'on-secondary-container-dark': '#BCCED7',
+              'tertiary-dark': '#D4BDD5',
+              'on-tertiary-dark': '#3C2B46',
+              'tertiary-container-dark': '#554261',
+              'on-tertiary-container-dark': '#D4BDD5',
+              'background-dark': '#1A1C1D',
+              'on-background-dark': '#E2E2E3',
+              'surface-dark': '#1A1C1D',
+              'on-surface-dark': '#E2E2E3',
+              'surface-variant-dark': '#4D5356',
+              'on-surface-variant-dark': '#C3C7C9',
+              'outline-dark': '#8E9496',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .record-button {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .record-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .record-button.active {
+            animation: pulse-primary 1.5s infinite;
+        }
+        @keyframes pulse-primary {
+            0%, 100% {
+                box-shadow: 0 0 0 0 theme('colors.primary-light / 70%');
+            }
+            70% {
+                box-shadow: 0 0 0 10px theme('colors.primary-light / 0%');
+            }
+        }
+        .dark .record-button.active {
+             animation: pulse-primary-dark 1.5s infinite;
+        }
+        @keyframes pulse-primary-dark {
+            0%, 100% {
+                box-shadow: 0 0 0 0 theme('colors.primary-dark / 70%');
+            }
+            70% {
+                box-shadow: 0 0 0 10px theme('colors.primary-dark / 0%');
+            }
+        }
+        .spinner {
+            border-top-color: theme('colors.primary-light');
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        .dark .spinner {
+            border-top-color: theme('colors.primary-dark');
+        }
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .user-id-text {
+            word-break: break-all;
+            hyphens: auto;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: theme('colors.on-background-light / 50%');
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .dark .modal {
+            background-color: theme('colors.on-background-dark / 50%');
+        }
+        .modal-content {
+            background-color: theme('colors.surface-light');
+            color: theme('colors.on-surface-light');
+            padding: 2rem;
+            border-radius: 2rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .dark .modal-content {
+            background-color: theme('colors.surface-dark');
+            color: theme('colors.on-surface-dark');
+        }
+        [contenteditable]:focus {
+            outline: 2px solid theme('colors.primary-light');
+            outline-offset: 2px;
+        }
+        .dark [contenteditable]:focus {
+            outline-color: theme('colors.primary-dark');
+        }
+        .collection-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            font-size: 1.5rem;
+            color: white;
+            margin-right: 0.75rem;
+        }
+        .icon-selector, .color-selector {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.5rem;
+        }
+        .icon-btn, .color-btn {
+            border-radius: 9999px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .icon-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .selected-emoji {
+            background-color: theme('colors.primary-light');
+            color: theme('colors.on-primary-light');
+            border-radius: 0.75rem;
+            padding: 0.5rem 1rem;
+            font-size: 1.5rem;
+        }
+        .dark .selected-emoji {
+            background-color: theme('colors.primary-dark');
+            color: theme('colors.on-primary-dark');
+        }
+        .note-card {
+            border-left-width: 4px;
+        }
+        #google-login-btn {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+            transition: background-color 0.3s, opacity 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-on-background-light dark:text-on-background-dark flex flex-col items-center p-4 min-h-screen transition-colors duration-300">
+    <div class="min-h-screen flex flex-col items-center p-4">
+
+        <!-- Barra de navegación superior -->
+        <header class="w-full max-w-2xl flex justify-between items-center py-4 mb-8">
+            <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">Notas de Audio con IA</h1>
+            <button id="themeToggle" class="p-3 rounded-full bg-surface-variant-light dark:bg-surface-variant-dark shadow-sm">
+                <svg id="moonIcon" class="w-6 h-6 hidden dark:block text-on-surface-variant-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <svg id="sunIcon" class="w-6 h-6 block dark:hidden text-on-surface-variant-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
+        </header>
+
+        <div class="container-app w-full max-w-2xl bg-surface-light dark:bg-surface-dark rounded-3xl shadow-lg p-6 md:p-12 space-y-8 flex flex-col items-center">
+            <h1 class="text-4xl font-bold text-center text-on-surface-light dark:text-on-surface-dark mb-2">Notas de Audio con IA</h1>
+            <p class="text-center text-on-surface-light/70 dark:text-on-surface-dark/70 mb-6">Graba tus ideas, transcríbelas y resúmelas instantáneamente.</p>
+
+            <div id="main-content" class="w-full flex flex-col items-center space-y-8">
+                <div id="auth-section" class="flex flex-col items-center space-y-4">
+                    <button id="google-login-btn" class="flex items-center space-x-2 px-4 py-2 bg-white text-on-surface-variant-light rounded-full font-semibold border border-gray-300 hover:bg-gray-100 transition-colors duration-300">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-5 h-5">
+                        <span>Iniciar sesión con Google</span>
+                    </button>
+                    <div id="user-info" class="hidden text-center">
+                        <p class="text-on-surface-light/70 dark:text-on-surface-dark/70">Sesión iniciada como <span id="user-display-name" class="font-bold"></span>.</p>
+                        <button id="logout-btn" class="mt-2 px-4 py-1 text-sm bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark rounded-full hover:opacity-80 transition-opacity">Cerrar sesión</button>
+                    </div>
+                </div>
+
+                <p id="user-id" class="text-xs text-on-surface-light/50 dark:text-on-surface-dark/50 text-center user-id-text">
+                    ID de usuario: <span id="user-id-display">Cargando...</span>
+                </p>
+
+                <div class="flex flex-col items-center space-y-4">
+                    <button id="record-btn" class="record-button w-24 h-24 bg-primary-light dark:bg-primary-dark text-on-primary-light dark:text-on-primary-dark rounded-full flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-primary-container-light transform transition-transform duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+                            <path fill="currentColor" d="M24 28c3.31 0 6-2.69 6-6V10c0-3.31-2.69-6-6-6s-6 2.69-6 6v12c0 3.31 2.69 6 6 6zm-10 0c0 5.52 4.48 10 10 10s10-4.48 10-10h-2c0 4.42-3.58 8-8 8s-8-3.58-8-8H14zm10 16c-8.84 0-16-7.16-16-16h2c0 7.73 6.27 14 14 14s14-6.27 14-14h2c0 8.84-7.16 16-16 16z"/>
+                        </svg>
+                    </button>
+                    <p id="status-message" class="text-on-surface-light/70 dark:text-on-surface-dark/70 font-semibold"></p>
+                </div>
+
+                <div id="loading-spinner" class="hidden flex justify-center">
+                    <div class="spinner border-4 border-surface-variant-light dark:border-surface-variant-dark rounded-full w-12 h-12"></div>
+                </div>
+
+                <div class="w-full bg-surface-variant-light dark:bg-surface-variant-dark text-on-surface-variant-light dark:text-on-surface-variant-dark p-6 rounded-3xl shadow-inner border border-outline-light dark:border-outline-dark">
+                    <h2 class="text-xl font-semibold mb-3">Documento de la Nota</h2>
+                    <div class="space-y-4">
+                        <div class="flex flex-col space-y-2">
+                            <label for="topic-selector" class="font-semibold">Seleccionar Colección:</label>
+                            <select id="topic-selector" class="flex-1 p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark">
+                                <option value="">-- Selecciona una colección --</option>
+                            </select>
+                        </div>
+                        <input type="text" id="topic-input" class="w-full p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark" placeholder="o escribe una nueva colección..." >
+                        <input type="text" id="note-title-input" class="w-full p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark" placeholder="Título de la nota (ej: Ideas del proyecto)...">
+                        <textarea id="transcription-text" class="w-full h-48 p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark" placeholder="Aquí aparecerá la transcripción..."></textarea>
+                        <textarea id="summary-text" class="w-full h-24 p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark" placeholder="Aquí aparecerá el resumen..."></textarea>
+                        <div class="flex justify-end space-x-2">
+                            <button id="clear-note-btn" class="px-6 py-2 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark">Limpiar</button>
+                            <button id="save-note-btn" class="px-6 py-2 bg-tertiary-light dark:bg-tertiary-dark text-on-tertiary-light dark:text-on-tertiary-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark">Guardar Nota</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full px-2 sm:px-4">
+                    <h2 class="text-xl font-semibold mt-8 mb-4 text-on-surface-light dark:text-on-surface-dark">Tus Colecciones</h2>
+                    <div id="topics-list-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Las tarjetas de las colecciones se renderán aquí -->
+                    </div>
+                    <p id="no-topics-message" class="text-on-surface-light/50 dark:text-on-surface-dark/50 text-center col-span-full hidden mt-4">No hay colecciones guardadas.</p>
+                </div>
+            </div>
+
+            <div id="topic-details" class="w-full hidden flex-col items-center">
+                <div class="w-full max-w-2xl bg-surface-light dark:bg-surface-dark rounded-3xl shadow-lg p-6 md:p-12 space-y-8 flex-col">
+                    <div class="flex items-center space-x-4 mb-4">
+                        <button id="back-to-home" class="p-2 rounded-full bg-surface-variant-light dark:bg-surface-variant-dark text-on-surface-variant-light dark:text-on-surface-variant-dark hover:opacity-80 transition-colors duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <div id="details-topic-icon" class="collection-icon"></div>
+                            <h1 id="details-topic-title" class="text-4xl font-bold text-on-surface-light dark:text-on-surface-dark"></h1>
+                            <button id="edit-collection-details-btn" class="p-1 rounded-full text-on-surface-variant-light dark:text-on-surface-variant-dark hover:text-primary-light dark:hover:text-primary-dark">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <h2 class="text-xl font-semibold mb-3 text-on-surface-light dark:text-on-surface-dark">Resumen de la Colección</h2>
+                    <div id="collection-summary-display" class="w-full bg-surface-variant-light dark:bg-surface-variant-dark p-6 rounded-3xl shadow-inner border border-outline-light dark:border-outline-dark mb-6">
+                        <div id="collection-summary-text" class="text-on-surface-variant-light dark:text-on-surface-variant-dark whitespace-pre-wrap"></div>
+                        <div id="summary-loading-spinner" class="hidden flex justify-center">
+                            <div class="spinner border-4 border-surface-variant-light dark:border-surface-variant-dark rounded-full w-8 h-8"></div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-xl font-semibold mb-4 text-on-surface-light dark:text-on-surface-dark">Notas en la Colección</h2>
+                    <div id="notes-list" class="space-y-4">
+                        <p class="text-on-surface-light/50 dark:text-on-surface-dark/50 text-center" id="no-notes-message">Selecciona una colección para ver sus notas.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para confirmación de nueva colección -->
+        <div id="confirm-modal" class="modal hidden">
+            <div class="modal-content text-center">
+                <h3 class="text-2xl font-bold mb-4">¿Crear nueva colección?</h3>
+                <p id="modal-text" class="mb-6">La colección "<span id="new-topic-name" class="font-bold text-primary-light dark:text-primary-dark"></span>" no existe. ¿Quieres crearla?</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="modal-confirm-btn" class="px-6 py-2 bg-primary-light dark:bg-primary-dark text-on-primary-light dark:text-on-primary-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Sí, crear nueva</button>
+                    <button id="modal-cancel-btn" class="px-6 py-2 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para confirmar eliminación de colección -->
+        <div id="delete-modal" class="modal hidden">
+            <div class="modal-content text-center">
+                <h3 class="text-2xl font-bold mb-4">¿Eliminar colección?</h3>
+                <p id="delete-modal-text" class="mb-6">¿Estás seguro de que quieres eliminar la colección "<span id="delete-topic-name" class="font-bold text-tertiary-light dark:text-tertiary-dark"></span>" y todas sus notas?</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="delete-modal-confirm-btn" class="px-6 py-2 bg-tertiary-light dark:bg-tertiary-dark text-on-tertiary-light dark:text-on-tertiary-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Sí, eliminar</button>
+                    <button id="delete-modal-cancel-btn" class="px-6 py-2 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para editar colección (titulo, icono y color) -->
+        <div id="edit-collection-modal" class="modal hidden">
+            <div class="modal-content text-center">
+                <h3 class="text-2xl font-bold mb-4">Editar Colección</h3>
+                <div class="flex justify-center items-center mb-4">
+                    <div id="selected-icon-preview" class="selected-emoji"></div>
+                    <input type="text" id="edit-collection-name-input" class="w-full p-3 border border-outline-light dark:border-outline-dark rounded-2xl focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark ml-4" placeholder="Título de la colección">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-left mb-2 font-semibold">Seleccionar Icono:</label>
+                    <div id="icon-container" class="icon-selector">
+                        <!-- Icons will be generated here -->
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-left mb-2 font-semibold">Seleccionar Color:</label>
+                    <div id="color-container" class="color-selector">
+                        <!-- Colors will be generated here -->
+                    </div>
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                    <button id="edit-collection-save-btn" class="px-6 py-2 bg-tertiary-light dark:bg-tertiary-dark text-on-tertiary-light dark:text-on-tertiary-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Guardar</button>
+                    <button id="edit-collection-cancel-btn" class="px-6 py-2 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark font-semibold rounded-full shadow-md hover:opacity-80 transition-colors duration-300">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom prompt modal for emoji input -->
+        <div id="emoji-prompt-modal" class="modal hidden">
+            <div class="modal-content text-center">
+                <h3 class="text-2xl font-bold mb-4">Añadir tu propio Emoji</h3>
+                <p class="mb-4">Introduce el emoji que quieras usar:</p>
+                <input type="text" id="emoji-input-field" class="w-full p-3 mb-6 border border-outline-light dark:border-outline-dark rounded-2xl text-3xl text-center bg-surface-light dark:bg-surface-dark text-on-surface-light dark:text-on-surface-dark">
+                <div class="flex justify-center space-x-4">
+                    <button id="emoji-prompt-save" class="px-6 py-2 bg-primary-light dark:bg-primary-dark text-on-primary-light dark:text-on-primary-dark font-semibold rounded-full shadow-md hover:opacity-80">Aceptar</button>
+                    <button id="emoji-prompt-cancel" class="px-6 py-2 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark font-semibold rounded-full shadow-md hover:opacity-80">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, deleteDoc, query, where, getDocs, setDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        setLogLevel('debug');
+
+        // Global variables for Firebase and App ID
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // UI elements
+        const mainContent = document.getElementById('main-content');
+        const topicDetails = document.getElementById('topic-details');
+        const recordBtn = document.getElementById('record-btn');
+        const clearNoteBtn = document.getElementById('clear-note-btn');
+        const statusMessage = document.getElementById('status-message');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const topicInput = document.getElementById('topic-input');
+        const noteTitleInput = document.getElementById('note-title-input');
+        const transcriptionTextarea = document.getElementById('transcription-text');
+        const summaryTextarea = document.getElementById('summary-text');
+        const saveNoteBtn = document.getElementById('save-note-btn');
+        const topicSelector = document.getElementById('topic-selector');
+        const topicsListContainer = document.getElementById('topics-list-container');
+        const noTopicsMessage = document.getElementById('no-topics-message');
+        const collectionSummaryDisplay = document.getElementById('collection-summary-display');
+        const collectionSummaryText = document.getElementById('collection-summary-text');
+        const summaryLoadingSpinner = document.getElementById('summary-loading-spinner');
+        const notesList = document.getElementById('notes-list');
+        const noNotesMessage = document.getElementById('no-notes-message');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const backToHomeBtn = document.getElementById('back-to-home');
+        const detailsTopicTitle = document.getElementById('details-topic-title');
+        const detailsTopicIcon = document.getElementById('details-topic-icon');
+        const editCollectionDetailsBtn = document.getElementById('edit-collection-details-btn');
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+
+        // Autenticación UI
+        const authSection = document.getElementById('auth-section');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const userInfo = document.getElementById('user-info');
+        const userDisplayName = document.getElementById('user-display-name');
+        const logoutBtn = document.getElementById('logout-btn');
+
+
+        // Modals
+        const confirmModal = document.getElementById('confirm-modal');
+        const newTopicNameSpan = document.getElementById('new-topic-name');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteTopicNameSpan = document.getElementById('delete-topic-name');
+        const deleteModalConfirmBtn = document.getElementById('delete-modal-confirm-btn');
+        const deleteModalCancelBtn = document.getElementById('delete-modal-cancel-btn');
+
+        const editCollectionModal = document.getElementById('edit-collection-modal');
+        const editCollectionNameInput = document.getElementById('edit-collection-name-input');
+        const editCollectionSaveBtn = document.getElementById('edit-collection-save-btn');
+        const editCollectionCancelBtn = document.getElementById('edit-collection-cancel-btn');
+        const selectedIconPreview = document.getElementById('selected-icon-preview');
+
+        // Custom emoji prompt modal
+        const emojiPromptModal = document.getElementById('emoji-prompt-modal');
+        const emojiInputField = document.getElementById('emoji-input-field');
+        const emojiPromptSaveBtn = document.getElementById('emoji-prompt-save');
+        const emojiPromptCancelBtn = document.getElementById('emoji-prompt-cancel');
+
+        // State variables
+        let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
+        let db;
+        let auth;
+        let userId;
+        let currentTopicId = null;
+        let currentTopicDoc = null;
+        let unsubscribeNotesListener = null;
+
+        const defaultIcons = ['📝', '💡', '🗓️', '🛒', '🏡', '📚', '🚀', '🛠️', '🧘‍♀️', '✈️'];
+        const defaultColors = ['#3B82F6', '#546A76', '#6E5C77', '#8EBCF6', '#BCCED7', '#D4BDD5', '#294363', '#3D4F59', '#554261', '#1C9D91'];
+
+        // --- View Management ---
+        function showPage(pageName) {
+            if (pageName === 'home') {
+                mainContent.classList.remove('hidden');
+                topicDetails.classList.add('hidden');
+                fetchAndRenderTopics();
+            } else if (pageName === 'topic-details') {
+                mainContent.classList.add('hidden');
+                topicDetails.classList.remove('hidden');
+            }
+        }
+
+        backToHomeBtn.addEventListener('click', () => {
+            showPage('home');
+        });
+
+        editCollectionDetailsBtn.addEventListener('click', () => {
+            if (currentTopicDoc) {
+                showEditCollectionModal(currentTopicDoc);
+            }
+        });
+        
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+            } else {
+                html.classList.add('dark');
+            }
+        });
+
+        // --- Firebase Initialization and Authentication ---
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        if (user.isAnonymous) {
+                            googleLoginBtn.classList.remove('hidden');
+                            userInfo.classList.add('hidden');
+                        } else {
+                            googleLoginBtn.classList.add('hidden');
+                            userInfo.classList.remove('hidden');
+                            userDisplayName.textContent = user.displayName || user.email;
+                        }
+                        await populateInitialData();
+                        showPage('home');
+                    } else {
+                        // Sign in anonymously if no user is found
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (e) {
+                            console.error("Error al iniciar sesión anónima:", e);
+                            statusMessage.textContent = "Error al iniciar sesión. Por favor, intenta de nuevo más tarde.";
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error al inicializar Firebase:", error);
+                statusMessage.textContent = "Error al conectar con la base de datos.";
+            }
+        }
+
+        googleLoginBtn.addEventListener('click', async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Error al iniciar sesión con Google:", error);
+                let message = "Error al iniciar sesión con Google. Por favor, inténtalo de nuevo.";
+                if (error.code === 'auth/popup-closed-by-user') {
+                    message = "El inicio de sesión ha sido cancelado.";
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    message = "Ya hay un inicio de sesión en curso. Por favor, inténtalo de nuevo.";
+                } else if (error.code === 'auth/unauthorized-domain') {
+                    message = "Dominio no autorizado. Asegúrate de que el dominio está en la lista de dominios autorizados en la configuración de Firebase Console.";
+                }
+                statusMessage.textContent = message;
+            }
+        });
+
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                statusMessage.textContent = "Sesión cerrada. Puedes volver a iniciar sesión o usar la aplicación de forma anónima.";
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+                statusMessage.textContent = "Error al cerrar sesión.";
+            }
+        });
+
+        // --- Populate initial data (factory-made collections) ---
+        async function populateInitialData() {
+            if (!userId) return;
+            const userDocRef = doc(db, `/artifacts/${appId}/users`, userId);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists() && userDoc.data().hasInitialData) {
+                console.log("Datos iniciales ya poblados.");
+                return;
+            }
+
+            console.log("Poblando datos iniciales...");
+            const batch = writeBatch(db);
+
+            const initialData = [
+                {
+                    topic: 'Plan de Ejercicio',
+                    icon: '🏋️',
+                    color: '#3B82F6',
+                    summary: '* Plan de ejercicio semanal: cardio y fuerza.\n* Cardio: Lunes, miércoles y viernes.\n* Fuerza: Martes y jueves.\n* Recuperación: Sábado (estiramientos/yoga) y domingo (descanso).\n* Objetivo: Añadir 30 minutos de calentamiento.',
+                    notes: [
+                        {
+                            title: 'Entrenamiento Semanal',
+                            transcription: 'Hoy decidí empezar mi plan de ejercicio. Planeo hacer cardio los lunes, miércoles y viernes. Los martes y jueves, me enfocaré en la fuerza. Sábado será para estiramientos y yoga. Domingo, descanso total. Quiero añadir 30 minutos de calentamiento antes de cada sesión.',
+                            summary: '* Plan de ejercicio semanal: cardio y fuerza.\n* Cardio: Lunes, miércoles y viernes.\n* Fuerza: Martes y jueves.\n* Recuperación: Sábado (estiramientos/yoga) y domingo (descanso).\n* Objetivo: Añadir 30 minutos de calentamiento.',
+                        },
+                        {
+                            title: 'Rutina Abdominal',
+                            transcription: 'Acabo de encontrar una rutina de 15 minutos para abdominales que me parece ideal para combinar con el cardio. También, voy a buscar una aplicación de seguimiento de progreso para mantener la motivación.',
+                            summary: '* Nueva rutina: 15 minutos de abdominales para complementar el cardio.\n* Herramienta: Buscar una app de seguimiento de progreso.',
+                        }
+                    ]
+                },
+                {
+                    topic: 'Ideas para Blog',
+                    icon: '✍️',
+                    color: '#1C9D91',
+                    summary: '* Ideas para el blog:\n* **Recetas**: 10 Recetas Veganas Fáciles.\n* **Jardinería**: Guía para huerto en casa.\n* **Tecnología**: Ciberseguridad para principiantes y cómo programar un chatbot con Python.',
+                    notes: [
+                        {
+                            title: 'Temas iniciales',
+                            transcription: 'Mis primeras ideas para el blog son "10 Recetas de Cocina Vegana Fácil" y "Guía para empezar un huerto en casa". Otra idea es un post sobre "Ciberseguridad para principiantes". Y un cuarto tema podría ser "Cómo programar tu primer chatbot con Python".',
+                            summary: '* Ideas para el blog:\n* **Recetas**: 10 Recetas Veganas Fáciles.\n* **Jardinería**: Guía para huerto en casa.\n* **Tecnología**: Ciberseguridad para principiantes y cómo programar un chatbot con Python.',
+                        },
+                        {
+                            title: 'Contenido adicional',
+                            transcription: 'Para el post de Python, quiero incluir ejemplos de código simples y un video tutorial corto. En el de cocina, debería poner fotos de cada paso.',
+                            summary: '* Contenido extra para el blog:\n* **Post de Python**: incluir ejemplos de código y un video tutorial.\n* **Post de cocina**: añadir fotos del paso a paso.',
+                        }
+                    ]
+                }
+            ];
+
+            for (const data of initialData) {
+                const topicDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, data.topic);
+                batch.set(topicDocRef, { topicName: data.topic, icon: data.icon, color: data.color, summary: data.summary, createdAt: new Date() });
+                
+                for (const note of data.notes) {
+                    const noteDocRef = doc(collection(db, `/artifacts/${appId}/users/${userId}/topics/${data.topic}/notes`));
+                    batch.set(noteDocRef, { ...note, createdAt: new Date() });
+                }
+            }
+
+            await batch.commit();
+            await setDoc(userDocRef, { hasInitialData: true }, { merge: true });
+            console.log("Datos iniciales poblados con éxito.");
+        }
+
+        // --- Audio Recording Logic ---
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                    processAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.classList.add('active');
+                statusMessage.textContent = "Grabando... Haz clic de nuevo para parar.";
+                
+            } catch (err) {
+                console.error("Error al acceder al micrófono:", err);
+                statusMessage.textContent = "Error: Asegúrate de permitir el acceso al micrófono.";
+            }
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.classList.remove('active');
+            statusMessage.textContent = "Procesando audio...";
+            showLoading(true);
+        }
+
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                if (transcriptionTextarea.value.trim() !== '') {
+                    statusMessage.textContent = "Por favor, guarda o limpia la nota actual antes de grabar una nueva.";
+                    return;
+                }
+                startRecording();
+            }
+        });
+
+        clearNoteBtn.addEventListener('click', () => {
+            topicInput.value = '';
+            noteTitleInput.value = '';
+            transcriptionTextarea.value = '';
+            summaryTextarea.value = '';
+            statusMessage.textContent = "Nota limpiada. Lista para una nueva grabación.";
+        });
+
+        // --- LLM API Call and Processing ---
+        async function processAudio(audioBlob) {
+            try {
+                const base64Audio = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(audioBlob);
+                });
+
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: "Deduce un tema corto y conciso (máximo 3 palabras), un icono relevante (emoji) y un color de fondo en formato hex (ej: #FF5733) para el siguiente audio. Transcríbelo y luego genera un resumen conciso y esquemático con bullet points de las ideas clave. El resumen debe estar escrito desde la perspectiva de la persona que habla, como si fueran sus propias notas. Formato de la respuesta: <tema>||<icono>||<color>||<transcripción>||<resumen en markdown con bullet points>" },
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } }
+                        ]
+                    }],
+                };
+
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let response;
+                let retries = 0;
+                const maxRetries = 3;
+                while (retries < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (response.ok) break;
+                    } catch (e) {
+                        console.error("Fetch failed, retrying...", e);
+                    }
+                    retries++;
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error("Formato de respuesta inválido de la API.");
+                }
+
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!text || text.split('||').length !== 5) {
+                    throw new Error("Formato de respuesta inválido de la API.");
+                }
+
+                const [topic, icon, color, transcription, summary] = text.split('||').map(s => s.trim());
+                topicInput.value = topic;
+                transcriptionTextarea.value = transcription;
+                summaryTextarea.value = summary;
+
+                // Set a default title based on the first few words of the transcription
+                const defaultTitle = transcription.split(' ').slice(0, 5).join(' ') + '...';
+                noteTitleInput.value = defaultTitle;
+
+                statusMessage.textContent = "Transcripción y resumen listos. Haz clic en 'Guardar Nota' para archivarla.";
+
+            } catch (error) {
+                console.error("Error al procesar el audio:", error);
+                statusMessage.textContent = "Error al procesar el audio. Inténtalo de nuevo.";
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- LLM Collection Summary Generation and Saving ---
+        async function updateCollectionSummary(topicId) {
+            summaryLoadingSpinner.classList.remove('hidden');
+            collectionSummaryText.classList.add('hidden');
+            
+            try {
+                statusMessage.textContent = `Generando resumen para "${topicId}"...`;
+                const notesCollectionPath = `/artifacts/${appId}/users/${userId}/topics/${topicId}/notes`;
+                const notesSnapshot = await getDocs(collection(db, notesCollectionPath));
+                
+                const allTranscriptions = notesSnapshot.docs.map(doc => doc.data().transcription).join('\n\n');
+
+                let newSummary = "No hay notas en esta colección para resumir.";
+                if (allTranscriptions.length > 0) {
+                     const payload = {
+                        contents: [{
+                            parts: [
+                                { text: `Genera un resumen conciso y esquemático con bullet points que condense todas las ideas principales de los siguientes textos:\n\n${allTranscriptions}` }
+                            ]
+                        }],
+                    };
+
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    newSummary = result?.candidates?.[0]?.content?.parts?.[0]?.text || newSummary;
+                }
+
+                const topicDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, topicId);
+                await updateDoc(topicDocRef, { summary: newSummary });
+
+            } catch (e) {
+                console.error("Error generating collection summary:", e);
+                statusMessage.textContent = "Error al generar el resumen de la colección.";
+            } finally {
+                summaryLoadingSpinner.classList.add('hidden');
+                collectionSummaryText.classList.remove('hidden');
+            }
+        }
+
+        function showLoading(show) {
+            loadingSpinner.classList.toggle('hidden', !show);
+            saveNoteBtn.disabled = show;
+        }
+        
+        // --- Markdown to HTML Conversion ---
+        function markdownToHtml(markdown) {
+            if (!markdown) return '';
+            let html = markdown;
+            // Bold
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Bullet points
+            const lines = html.split('\n');
+            let isList = false;
+            let listHtml = '';
+            
+            lines.forEach(line => {
+                if (line.startsWith('* ')) {
+                    if (!isList) {
+                        listHtml += '<ul>';
+                        isList = true;
+                    }
+                    listHtml += `<li>${line.substring(2)}</li>`;
+                } else {
+                    if (isList) {
+                        listHtml += '</ul>';
+                        isList = false;
+                    }
+                    listHtml += `<p>${line}</p>`;
+                }
+            });
+            
+            if (isList) {
+                listHtml += '</ul>';
+            }
+            return listHtml;
+        }
+
+        // --- Firestore Saving Logic ---
+        saveNoteBtn.addEventListener('click', async () => {
+            const finalTopic = topicInput.value.trim();
+            const noteTitle = noteTitleInput.value.trim() || 'Nota sin título';
+            const transcription = transcriptionTextarea.value.trim();
+            const summary = summaryTextarea.value.trim();
+
+            if (!transcription || !summary || !finalTopic) {
+                statusMessage.textContent = "Por favor, graba una nota y asegúrate de que tiene un tema antes de guardar.";
+                return;
+            }
+
+            try {
+                statusMessage.textContent = "Verificando tema...";
+                const topicDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, finalTopic);
+                const docSnapshot = await getDoc(topicDocRef);
+                
+                let isNewTopic = !docSnapshot.exists();
+
+                if (isNewTopic) {
+                    // Show confirmation modal
+                    const userConfirmed = await new Promise((resolve) => {
+                        newTopicNameSpan.textContent = finalTopic;
+                        confirmModal.classList.remove('hidden');
+                        modalConfirmBtn.onclick = () => {
+                            confirmModal.classList.add('hidden');
+                            resolve(true);
+                        };
+                        modalCancelBtn.onclick = () => {
+                            confirmModal.classList.add('hidden');
+                            resolve(false);
+                        };
+                    });
+
+                    if (!userConfirmed) {
+                        statusMessage.textContent = "Operación cancelada.";
+                        return;
+                    }
+                }
+                
+                // Get topic data, including icon and color, or generate them
+                let topicData = docSnapshot.exists() ? docSnapshot.data() : null;
+                if (!topicData) {
+                    const icon = defaultIcons[Math.floor(Math.random() * (defaultIcons.length - 1))]; // Exclude the +
+                    const color = defaultColors[Math.floor(Math.random() * defaultColors.length)];
+                    topicData = { topicName: finalTopic, icon, color, createdAt: new Date() };
+                }
+
+                // Save the topic as a document
+                await setDoc(topicDocRef, topicData, { merge: true });
+
+                // Save the note in the topic's subcollection
+                const notesCollectionPath = `/artifacts/${appId}/users/${userId}/topics/${finalTopic}/notes`;
+                const notesCollectionRef = collection(db, notesCollectionPath);
+                
+                await addDoc(notesCollectionRef, {
+                    title: noteTitle,
+                    transcription: transcription,
+                    summary: summary,
+                    createdAt: new Date()
+                });
+
+                statusMessage.textContent = `Nota guardada con éxito en la colección "${finalTopic}".`;
+                topicInput.value = '';
+                noteTitleInput.value = '';
+                transcriptionTextarea.value = '';
+                summaryTextarea.value = '';
+
+                await updateCollectionSummary(finalTopic);
+                showPage('home');
+
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                statusMessage.textContent = "Error al guardar la nota.";
+            }
+        });
+
+        // --- Firestore Real-time Listener and UI Rendering ---
+        function startNoteListener(topicDoc) {
+            if (!userId) {
+                return;
+            }
+            // Unsubscribe from the previous listener if it exists
+            if (unsubscribeNotesListener) {
+                unsubscribeNotesListener();
+            }
+
+            if (!topicDoc) {
+                notesList.innerHTML = '';
+                noNotesMessage.classList.remove('hidden');
+                collectionSummaryText.innerHTML = 'Selecciona una colección para ver el resumen...';
+                return;
+            }
+
+            currentTopicDoc = topicDoc;
+            currentTopicId = topicDoc.id;
+            detailsTopicTitle.textContent = topicDoc.data().topicName;
+            detailsTopicIcon.textContent = topicDoc.data().icon;
+            detailsTopicIcon.style.backgroundColor = topicDoc.data().color;
+            collectionSummaryText.innerHTML = markdownToHtml(topicDoc.data().summary);
+            
+            const notesCollectionPath = `/artifacts/${appId}/users/${userId}/topics/${currentTopicId}/notes`;
+            const notesCollectionRef = collection(db, notesCollectionPath);
+
+            unsubscribeNotesListener = onSnapshot(notesCollectionRef, async (querySnapshot) => {
+                notesList.innerHTML = ''; 
+                if (querySnapshot.empty) {
+                    noNotesMessage.classList.remove('hidden');
+                    // Delete the topic document if the collection is empty
+                    const topicDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, currentTopicId);
+                    await deleteDoc(topicDocRef);
+                    // Go back to the main page after deletion
+                    showPage('home');
+                } else {
+                    noNotesMessage.classList.add('hidden');
+                    const notes = [];
+                    querySnapshot.forEach((doc) => {
+                        notes.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    notes.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+
+                    notes.forEach((note) => {
+                        const noteElement = document.createElement('div');
+                        noteElement.className = 'note-card p-4 rounded-2xl shadow-sm flex flex-col justify-between items-start border-primary-light dark:border-primary-dark bg-surface-light dark:bg-surface-dark';
+                        noteElement.innerHTML = `
+                            <div class="flex-1 min-w-0 w-full">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="note-title text-lg font-bold text-on-surface-light dark:text-on-surface-dark break-words" contenteditable="false">${note.title || 'Nota sin título'}</h3>
+                                    <p class="text-sm text-on-surface-light/50 dark:text-on-surface-dark/50">${note.createdAt.toDate().toLocaleString('es-ES')}</p>
+                                </div>
+                                <div class="transcription-container my-2 text-sm text-on-surface-light/70 dark:text-on-surface-dark/70 whitespace-pre-wrap" contenteditable="false">${note.transcription}</div>
+                                <div class="flex items-center justify-end w-full mt-2 space-x-2">
+                                    <button class="edit-btn px-3 py-1 bg-secondary-container-light dark:bg-secondary-container-dark text-on-secondary-container-light dark:text-on-secondary-container-dark rounded-full text-xs font-semibold hover:opacity-80 transition-colors">
+                                        Editar
+                                    </button>
+                                    <button class="delete-btn px-3 py-1 bg-tertiary-container-light dark:bg-tertiary-container-dark text-on-tertiary-container-light dark:text-on-tertiary-container-dark rounded-full text-xs font-semibold hover:opacity-80 transition-colors">
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        notesList.appendChild(noteElement);
+                        
+                        // Add event listeners to the buttons
+                        const noteTitleDiv = noteElement.querySelector('.note-title');
+                        const transcriptionDiv = noteElement.querySelector('.transcription-container');
+                        const editBtn = noteElement.querySelector('.edit-btn');
+                        const deleteBtn = noteElement.querySelector('.delete-btn');
+
+                        editBtn.addEventListener('click', async () => {
+                            if (editBtn.textContent === 'Editar') {
+                                noteTitleDiv.contentEditable = 'true';
+                                transcriptionDiv.contentEditable = 'true';
+                                noteTitleDiv.focus();
+                                editBtn.textContent = 'Guardar';
+                                editBtn.classList.replace('bg-secondary-container-light', 'bg-tertiary-light');
+                                editBtn.classList.replace('dark:bg-secondary-container-dark', 'dark:bg-tertiary-dark');
+                                editBtn.classList.replace('text-on-secondary-container-light', 'text-on-tertiary-light');
+                                editBtn.classList.replace('dark:text-on-secondary-container-dark', 'dark:text-on-tertiary-dark');
+                            } else {
+                                const newTitle = noteTitleDiv.textContent;
+                                const newTranscription = transcriptionDiv.textContent;
+                                const noteDocRef = doc(db, notesCollectionPath, note.id);
+                                await updateDoc(noteDocRef, {
+                                    title: newTitle,
+                                    transcription: newTranscription,
+                                });
+                                statusMessage.textContent = "Nota actualizada.";
+                                editBtn.textContent = 'Editar';
+                                editBtn.classList.replace('bg-tertiary-light', 'bg-secondary-container-light');
+                                editBtn.classList.replace('dark:bg-tertiary-dark', 'dark:bg-secondary-container-dark');
+                                editBtn.classList.replace('text-on-tertiary-light', 'text-on-secondary-container-light');
+                                editBtn.classList.replace('dark:text-on-tertiary-container-dark', 'dark:text-on-secondary-container-dark');
+                                noteTitleDiv.contentEditable = 'false';
+                                transcriptionDiv.contentEditable = 'false';
+                                updateCollectionSummary(currentTopicId);
+                            }
+                        });
+
+                        deleteBtn.addEventListener('click', async () => {
+                            try {
+                                const noteDocRef = doc(db, notesCollectionPath, note.id);
+                                await deleteDoc(noteDocRef);
+                                statusMessage.textContent = "Nota eliminada.";
+                                await updateCollectionSummary(currentTopicId);
+                            } catch (e) {
+                                console.error("Error removing document: ", e);
+                                statusMessage.textContent = "Error al eliminar la nota.";
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        // --- Manage Topics UI and Data ---
+        async function fetchAndRenderTopics() {
+            if (!userId) return;
+            topicSelector.innerHTML = '<option value="">-- Selecciona una colección --</option>';
+            topicsListContainer.innerHTML = '';
+            
+            const topicsCollectionRef = collection(db, `/artifacts/${appId}/users/${userId}/topics`);
+            const querySnapshot = await getDocs(topicsCollectionRef);
+
+            if (querySnapshot.empty) {
+                noTopicsMessage.classList.remove('hidden');
+                startNoteListener(null);
+                return;
+            } else {
+                noTopicsMessage.classList.add('hidden');
+            }
+
+            for (const doc of querySnapshot.docs) {
+                const topicId = doc.id;
+                const topicData = doc.data();
+                const notesCollectionRef = collection(db, `/artifacts/${appId}/users/${userId}/topics/${topicId}/notes`);
+                const notesSnapshot = await getDocs(notesCollectionRef);
+                const noteCount = notesSnapshot.size;
+                
+                // Populate dropdown
+                const option = document.createElement('option');
+                option.value = topicId;
+                option.textContent = `${topicId} (${noteCount} notas)`;
+                topicSelector.appendChild(option);
+
+                // Create topic card for main UI
+                const topicCard = document.createElement('div');
+                topicCard.className = 'bg-surface-variant-light dark:bg-surface-variant-dark text-on-surface-variant-light dark:text-on-surface-variant-dark p-4 rounded-3xl shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300 relative';
+                topicCard.innerHTML = `
+                    <div class="flex items-center space-x-2 mb-2">
+                        <div class="collection-icon" style="background-color: ${topicData.color}">${topicData.icon}</div>
+                        <h3 class="text-lg font-semibold">${topicId}</h3>
+                    </div>
+                    <p class="text-sm opacity-70">${noteCount} nota${noteCount !== 1 ? 's' : ''}</p>
+                    <div class="absolute top-2 right-2 flex space-x-1">
+                         <button class="edit-collection-btn p-2 rounded-full text-on-surface-variant-light dark:text-on-surface-variant-dark hover:text-primary-light dark:hover:text-primary-dark">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        </button>
+                        <button class="delete-btn p-2 rounded-full text-on-surface-variant-light dark:text-on-surface-variant-dark hover:text-tertiary-light dark:hover:text-tertiary-dark">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        </button>
+                    </div>
+                `;
+                topicsListContainer.appendChild(topicCard);
+
+                // Add event listeners for navigation and actions
+                const editCollectionBtn = topicCard.querySelector('.edit-collection-btn');
+                const deleteBtn = topicCard.querySelector('.delete-btn');
+                
+                topicCard.addEventListener('click', (e) => {
+                    if (e.target.closest('.edit-collection-btn') || e.target.closest('.delete-btn')) {
+                        return;
+                    }
+                    showPage('topic-details');
+                    startNoteListener(doc);
+                });
+
+                editCollectionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent the card click event
+                    showEditCollectionModal(doc);
+                });
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent the card click event
+                    showDeleteModal(topicId);
+                });
+            }
+        }
+
+        topicSelector.addEventListener('change', (e) => {
+            const selectedTopic = e.target.value;
+            if (selectedTopic) {
+                topicInput.value = selectedTopic;
+            } else {
+                topicInput.value = '';
+            }
+        });
+
+        // --- Modal Functionality ---
+        function showDeleteModal(topicId) {
+            deleteTopicNameSpan.textContent = topicId;
+            deleteModal.classList.remove('hidden');
+            
+            const handleConfirm = async () => {
+                deleteModal.classList.add('hidden');
+                await deleteTopic(topicId);
+            };
+
+            const handleCancel = () => {
+                deleteModal.classList.add('hidden');
+            };
+
+            deleteModalConfirmBtn.onclick = handleConfirm;
+            deleteModalCancelBtn.onclick = handleCancel;
+        }
+
+        async function deleteTopic(topicId) {
+            try {
+                statusMessage.textContent = `Eliminando colección "${topicId}"...`;
+                const notesCollectionPath = `/artifacts/${appId}/users/${userId}/topics/${topicId}/notes`;
+                const notesSnapshot = await getDocs(collection(db, notesCollectionPath));
+
+                const batch = writeBatch(db);
+                notesSnapshot.docs.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+
+                const topicDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, topicId);
+                await deleteDoc(topicDocRef);
+
+                statusMessage.textContent = `Colección "${topicId}" eliminada con éxito.`;
+                showPage('home');
+            } catch (e) {
+                console.error("Error deleting topic:", e);
+                statusMessage.textContent = "Error al eliminar la colección.";
+            }
+        }
+
+        function showEditCollectionModal(topicDoc) {
+            const topicData = topicDoc.data();
+            let originalTopicId = topicDoc.id;
+            let selectedIcon = topicData.icon;
+            let selectedColor = topicData.color;
+
+            editCollectionNameInput.value = topicData.topicName;
+            selectedIconPreview.textContent = selectedIcon;
+            editCollectionModal.classList.remove('hidden');
+
+            const iconContainer = document.getElementById('icon-container');
+            const colorContainer = document.getElementById('color-container');
+
+            iconContainer.innerHTML = '';
+            colorContainer.innerHTML = '';
+
+            const handleIconSelection = (icon) => {
+                selectedIcon = icon;
+                selectedIconPreview.textContent = icon;
+                iconContainer.querySelectorAll('.icon-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-primary-light', 'dark:ring-primary-dark'));
+                const selectedBtn = Array.from(iconContainer.querySelectorAll('.icon-btn')).find(btn => btn.textContent === icon);
+                if (selectedBtn) {
+                    selectedBtn.classList.add('ring-2', 'ring-primary-light', 'dark:ring-primary-dark');
+                }
+            };
+            
+            defaultIcons.forEach(icon => {
+                const iconBtn = document.createElement('button');
+                iconBtn.textContent = icon;
+                iconBtn.className = `icon-btn px-4 py-2 bg-surface-variant-light dark:bg-surface-variant-dark text-lg rounded-full hover:opacity-80 transition-colors duration-300`;
+                if (icon === selectedIcon) {
+                     iconBtn.classList.add('ring-2', 'ring-primary-light', 'dark:ring-primary-dark');
+                }
+                iconBtn.onclick = () => {
+                    handleIconSelection(icon);
+                };
+                iconContainer.appendChild(iconBtn);
+            });
+
+            const customEmojiBtn = document.createElement('button');
+            customEmojiBtn.textContent = '➕';
+            customEmojiBtn.className = `icon-btn px-4 py-2 bg-surface-variant-light dark:bg-surface-variant-dark text-lg rounded-full hover:opacity-80 transition-colors duration-300`;
+            customEmojiBtn.onclick = () => {
+                showEmojiPromptModal().then(customEmoji => {
+                    if (customEmoji) {
+                        handleIconSelection(customEmoji);
+                    }
+                });
+            };
+            iconContainer.appendChild(customEmojiBtn);
+
+            defaultColors.forEach(color => {
+                const colorBtn = document.createElement('button');
+                colorBtn.className = `color-btn w-8 h-8 rounded-full border-2 border-transparent hover:border-primary-light dark:hover:border-primary-dark transition-colors duration-300`;
+                colorBtn.style.backgroundColor = color;
+                if (color === selectedColor) {
+                    colorBtn.classList.add('ring-2', 'ring-primary-light', 'dark:ring-primary-dark');
+                }
+                colorBtn.onclick = () => {
+                    selectedColor = color;
+                    colorContainer.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-primary-light', 'dark:ring-primary-dark'));
+                    colorBtn.classList.add('ring-2', 'ring-primary-light', 'dark:ring-primary-dark');
+                };
+                colorContainer.appendChild(colorBtn);
+            });
+
+            editCollectionSaveBtn.onclick = async () => {
+                const newTopicName = editCollectionNameInput.value.trim();
+                if (!newTopicName) {
+                    const messageModal = document.getElementById('confirm-modal');
+                    document.getElementById('modal-text').textContent = "El título de la colección no puede estar vacío.";
+                    document.getElementById('modal-confirm-btn').classList.add('hidden');
+                    document.getElementById('modal-cancel-btn').textContent = "Aceptar";
+                    messageModal.classList.remove('hidden');
+                    return;
+                }
+                
+                editCollectionModal.classList.add('hidden');
+                statusMessage.textContent = "Actualizando colección...";
+                showLoading(true);
+                
+                try {
+                    const currentTopicId = topicDoc.id;
+                    if (newTopicName !== currentTopicId) {
+                        await renameTopic(currentTopicId, newTopicName, selectedIcon, selectedColor);
+                    } else {
+                        const topicRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, currentTopicId);
+                        await updateDoc(topicRef, {
+                            icon: selectedIcon,
+                            color: selectedColor
+                        });
+                        statusMessage.textContent = "Colección actualizada con éxito.";
+                    }
+                    
+                    if (mainContent.classList.contains('hidden')) {
+                        const newDocRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, newTopicName);
+                        startNoteListener(await getDoc(newDocRef));
+                    } else {
+                        showPage('home');
+                    }
+                } catch (e) {
+                    console.error("Error al actualizar la colección:", e);
+                    statusMessage.textContent = "Error al actualizar la colección.";
+                } finally {
+                    showLoading(false);
+                }
+            };
+
+            editCollectionCancelBtn.onclick = () => {
+                editCollectionModal.classList.add('hidden');
+            };
+        }
+
+        async function renameTopic(oldTopicId, newTopicId, newIcon, newColor) {
+            try {
+                const oldTopicRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, oldTopicId);
+                const newTopicRef = doc(db, `/artifacts/${appId}/users/${userId}/topics`, newTopicId);
+                
+                const oldTopicData = await getDoc(oldTopicRef);
+                if (!oldTopicData.exists()) {
+                    throw new Error("Old topic does not exist.");
+                }
+
+                // Copy notes to new topic and delete old ones
+                const notesCollectionPath = `/artifacts/${appId}/users/${userId}/topics/${oldTopicId}/notes`;
+                const notesSnapshot = await getDocs(collection(db, notesCollectionPath));
+
+                const batch = writeBatch(db);
+                batch.set(newTopicRef, { topicName: newTopicId, icon: newIcon, color: newColor, summary: oldTopicData.data().summary, createdAt: new Date() });
+
+                notesSnapshot.docs.forEach((noteDoc) => {
+                    const newNoteRef = doc(collection(db, `/artifacts/${appId}/users/${userId}/topics/${newTopicId}/notes`));
+                    batch.set(newNoteRef, noteDoc.data());
+                    batch.delete(noteDoc.ref);
+                });
+                
+                batch.delete(oldTopicRef);
+
+                await batch.commit();
+
+                statusMessage.textContent = `Colección renombrada a "${newTopicId}" con éxito.`;
+            } catch (e) {
+                console.error("Error renaming topic:", e);
+                throw e;
+            }
+        }
+        
+        // Custom emoji prompt functionality
+        function showEmojiPromptModal() {
+            return new Promise((resolve) => {
+                emojiInputField.value = '';
+                emojiPromptModal.classList.remove('hidden');
+
+                const handleSave = () => {
+                    const customEmoji = emojiInputField.value.trim();
+                    emojiPromptModal.classList.add('hidden');
+                    resolve(customEmoji || null);
+                };
+
+                const handleCancel = () => {
+                    emojiPromptModal.classList.add('hidden');
+                    resolve(null);
+                };
+
+                emojiPromptSaveBtn.onclick = handleSave;
+                emojiPromptCancelBtn.onclick = handleCancel;
+                emojiInputField.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        handleSave();
+                    }
+                };
+            });
+        }
+
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
